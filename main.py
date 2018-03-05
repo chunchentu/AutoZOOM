@@ -21,6 +21,7 @@ from setup_inception import ImageNet, InceptionModel
 
 import Utils as util
 from blackbox_attack import ZOO, ZOO_AE, ZOO_RV, AutoZOOM
+import argparse
 
 
 def main(args):
@@ -98,11 +99,14 @@ def main(args):
         elif args["attack_method"] == "autozoom":
             blackbox_attack = AutoZOOM(sess, model, args, decoder)
 
-        os.system("mkdir -p {}/{}".format(args["save_path"], args['dataset']))
+
+        save_prefix = os.path.join(args["save_path"], args["dataset"], args["attack_method"], args["attack_type"])
+
+        os.system("mkdir -p {}".format(save_prefix))
 
         total_success = 0
         l2_total = 0
-        save_prefix = os.path.join(args["save_path"], args["dataset"])
+        
         for i in range(all_orig_img_id.size):
             orig_img = all_orig_img[i:i+1]
             target = all_target_labels[i:i+1]
@@ -118,11 +122,11 @@ def main(args):
             adv_img = blackbox_attack.attack(orig_img, target)
             timeend = time.time()
 
-            if len(adv.shape) == 3:
-                adv = np.expand_dims(adv, axis=0)
+            if len(adv_img.shape) == 3:
+                adv_img = np.expand_dims(adv_img, axis=0)
 
-            l2_dist = np.sum((adv-inputs)**2)**.5
-            adv_class = np.argmax(model.model.predict(adv))
+            l2_dist = np.sum((adv_img-orig_img)**2)**.5
+            adv_class = np.argmax(model.model.predict(adv_img))
 
             success = False
             if args["attack_type"] == "targeted":
@@ -162,8 +166,9 @@ def main(args):
 
 
 if __name__ == "__main__":
-    import argparse
+
     parser = argparse.ArgumentParser()
+
     parser.add_argument("-a", "--attack_method", default="autozoom", choices=["zoo", "zoo_ae", "zoo_rv", "autozoom"], help="the attack method")
     parser.add_argument("-b", "--batch_size", type=int, default=None, help="the batch size for zoo, zoo_ae attack")
     parser.add_argument("-c", "--init_const", type=float, default=1, help="the initial setting of the constant lambda")
@@ -248,7 +253,7 @@ if __name__ == "__main__":
 
     if args["save_path"] is None:
         # use dataset and attack method for the saving path
-        args["save_path"] = "{}_{}_{}".format(args["dataset"], args["attack_method"], args["attack_type"])
+        args["save_path"] = "Results"
 
 
 

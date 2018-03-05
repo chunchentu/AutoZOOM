@@ -26,7 +26,8 @@ ADAM_BETA2 = 0.999
 
 
 # @jit(nopython=True)
-def coordinate_ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, up, down, lr, adam_epoch, beta1, beta2, proj):
+# def coordinate_ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, up, down, lr, adam_epoch, beta1, beta2, proj):
+def coordinate_ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, lr, adam_epoch, beta1, beta2, proj):
     for i in range(batch_size):
         grad[i] = (losses[i*2+1] - losses[i*2+2]) / 0.0002 
     # ADAM update
@@ -43,8 +44,8 @@ def coordinate_ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real
     old_val = m[indice] 
     old_val -= lr * corr * mt / (np.sqrt(vt) + 1e-8)
     # set it back to [-0.5, +0.5] region
-    if proj:
-        old_val = np.maximum(np.minimum(old_val, up[indice]), down[indice])
+    # if proj:
+    #     old_val = np.maximum(np.minimum(old_val, up[indice]), down[indice])
     m[indice] = old_val
     # print(indice)
     # print(m)
@@ -52,7 +53,8 @@ def coordinate_ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real
     # print("grad:{}".format(grad[61]))
     adam_epoch[indice] = epoch + 1
 
-def ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, up, down, lr, adam_epoch, beta1, beta2, proj, beta, z, q=1):
+# def ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, up, down, lr, adam_epoch, beta1, beta2, proj, beta, z, q=1):
+def ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, lr, adam_epoch, beta1, beta2, proj, beta, z, q=1):
     # indice = np.array(range(0, 3*299*299), dtype = np.int32)
     for i in range(q):
        grad[i] = q*(losses[i+1] - losses[0])* z[i] / beta
@@ -81,8 +83,8 @@ def ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, 
     old_val = m[indice] 
     old_val -= lr * corr * mt / (np.sqrt(vt) + 1e-8)
     # set it back to [-0.5, +0.5] region
-    if proj:
-        old_val = np.maximum(np.minimum(old_val, up[indice]), down[indice])
+    # if proj:
+    #     old_val = np.maximum(np.minimum(old_val, up[indice]), down[indice])
     # print(grad)
     # print(old_val - m[indice])
     m[indice] = old_val
@@ -304,7 +306,7 @@ class blackbox_attack:
             if l2 < o_bestl2 and self.compare(score, np.argmax(lab)):
                 # print a message if it is the first attack found
                 if o_bestl2 == 1e10:
-                    print("[STATS][FirstAttack] iter:{}, const:{}, cost:{}, time:{:.3f}, size:{}, loss:{:.5g}, loss1:{:.5g}, loss2:{:.5g}, l2:{:.5g}".format(iteration, CONST, eval_costs, train_timer, self.real_modifier.shape, l, loss1, loss2, l2))
+                    print("[STATS][FirstAttack] iter:{}, const:{}, cost:{}, time:{:.3f}, size:{}, loss:{:.5g}, loss1:{:.5g}, loss2:{:.5g}, l2:{:.5g}".format(iteration, CONST, self.eval_costs, self.train_timer, self.real_modifier.shape, l, loss1, loss2, l2))
                     self.post_success_setting()
                 o_bestl2 = l2
                 o_bestscore = np.argmax(score)
@@ -352,6 +354,9 @@ class blackbox_attack:
         print("[Info][Iter] iter:{}, const:{}, cost:{}, time:{:.3f}, size:{}, loss:{:.5g}, real:{:.5g}, other:{:.5g}, loss1:{:.5g}, loss2:{:.5g}".format(self.current_iter, self.current_const, self.eval_costs, self.train_timer, self.real_modifier.shape, loss[0], real[0], other[0], loss1[0], loss2[0]))
         sys.stdout.flush()
 
+    def post_success_setting(self):
+        pass
+
 class ZOO(blackbox_attack):
     def __init__(self, sess, model, args):
         super().__init__(sess, model, args);
@@ -377,7 +382,8 @@ class ZOO(blackbox_attack):
             var[i * 2 + 2].reshape(-1)[indice[i]] -= 0.0001
         losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var})
         
-        self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.modifier_up, self.modifier_down, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH)
+        # self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.modifier_up, self.modifier_down, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH)
+        self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH)
 
         return losses[0], l2s[0], loss1[0], loss2[0], scores[0], nimgs[0]
 
@@ -411,7 +417,8 @@ class ZOO_RV(blackbox_attack):
         var = np.concatenate((self.real_modifier, self.real_modifier + self.beta*var_noise.reshape(self.modifier_size, self.modifier_size, self.num_channels)), axis=0)
         losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var})
         
-        self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.modifier_up, self.modifier_down, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise)
+        # self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.modifier_up, self.modifier_down, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise)
+        self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise)
 
         return losses[0], l2s[0], loss1[0], loss2[0], scores[0], nimgs[0]
 

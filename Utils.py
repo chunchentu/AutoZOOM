@@ -154,15 +154,14 @@ def generate_attack_data_set(data, num_sample, img_offset, model, attack_type="t
                 seq = np.random.choice(range(0, class_num), 1)
                 while seq == true_labels[img_offset+sample_index]:
                     seq = np.random.choice(range(0, class_num), 1)
-                if shift_index:
-                    seq += 1
+                
             else:
                 seq = list(range(class_num))
                 seq.remove(true_labels[img_offset+sample_index])
-                if shift_index:
-                    seq += 1
 
             for s in seq:
+                if shift_index and s == 0:
+                    s += 1
                 orig_img.append(data.test_data[img_offset+sample_index])
                 target_labels.append(np.eye(class_num)[s])
                 orig_labels.append(data.test_labels[img_offset+sample_index])
