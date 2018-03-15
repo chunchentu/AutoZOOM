@@ -119,6 +119,7 @@ class NodeLookup(object):
 def create_graph():
   """Creates a graph from saved GraphDef file and returns a saver."""
   # Creates graph from saved graph_def.pb.
+  sys.argv = [sys.argv[0]]
   with tf.gfile.FastGFile(os.path.join(
     #  FLAGS.model_dir, 'classify_image_graph_def.pb'), 'rb') as f:
       FLAGS.model_dir, 'frozen_inception_v3.pb'), 'rb') as f:
@@ -219,14 +220,14 @@ class InceptionModel:
   image_size = 299
   num_labels = 1001
   num_channels = 3
-  def __init__(self, sess, use_log = False):
+  def __init__(self, sess, use_softmax = False):
     global CREATED_GRAPH
     self.sess = sess
-    self.use_log = use_log
+    self.use_softmax = use_softmax
     if not CREATED_GRAPH:
       create_graph()
       CREATED_GRAPH = True
-    self.model = InceptionModelPrediction(sess, use_log)
+    self.model = InceptionModelPrediction(sess, use_softmax)
 
   def predict(self, img):
     if self.use_log:

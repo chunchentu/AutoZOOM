@@ -9,7 +9,7 @@
 ## This program is licenced under the BSD 2-Clause licence,
 ## contained in the LICENCE file in this directory.
 
-from keras.models import Model, model_from_json, Sequential
+from tensorflow.contrib.keras.api.keras.models import Model, model_from_json, Sequential
 from PIL import Image
 
 import tensorflow as tf
