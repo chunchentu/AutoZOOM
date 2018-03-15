@@ -179,10 +179,10 @@ def run_inference_on_image(image):
       print('%s (score = %.5f)' % (human_string, score))
 
 class InceptionModelPrediction:
-  def __init__(self, sess, use_log = False):
+  def __init__(self, sess, use_softmax = False):
     self.sess = sess
-    self.use_log = use_log
-    if self.use_log:
+    self.use_softmax = use_softmax
+    if self.use_softmax:
       output_name = 'InceptionV3/Predictions/Softmax:0'
     else:
       output_name = 'InceptionV3/Predictions/Reshape:0'

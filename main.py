@@ -28,11 +28,11 @@ def main(args):
     with tf.Session() as sess:
         print("Loading data and classifical model: {}".format(args["dataset"]))
         if args['dataset'] == "mnist":
-            data, model =  MNIST(), MNISTModel("models/mnist", sess, use_log=True)
+            data, model =  MNIST(), MNISTModel("models/mnist", sess, use_softmax=True)
         elif args['dataset'] == "cifar10":
-            data, model = CIFAR(), CIFARModel("models/cifar", sess, use_log=True)
+            data, model = CIFAR(), CIFARModel("models/cifar", sess, use_softmax=True)
         elif args['dataset'] == "imagenet":
-            data, model = ImageNet(data_path=args["imagenet_dir"], targetFile=args["attack_single_img"]), InceptionModel(sess, use_log=True)
+            data, model = ImageNet(data_path=args["imagenet_dir"], targetFile=args["attack_single_img"]), InceptionModel(sess, use_softmax=True)
 
         if len(data.test_labels) < args["num_img"]:
             raise Exception("No enough data, only have {} but need {}".format(len(data.test_labels), args["num_img"]))
@@ -46,7 +46,7 @@ def main(args):
             orig_img_id = np.array([1])
 
             if args["attack_type"] == "targeted":
-                target_labels = [np.eye(1001)[args["single_img_target_label"]]]
+                target_labels = [np.eye(model.num_labels)[args["single_img_target_label"]]]
             else:
                 target_labels = orig_labels
         else:
@@ -158,7 +158,7 @@ def main(args):
 
             # diff image
             save_name = os.path.join(save_prefix, "Diff_{}.png".format(suffix))
-            util.save_img(adv_img - orig_img, save_name)
+            util.save_img((adv_img - orig_img)/2, save_name)
             save_name = os.path.join(save_prefix, "Diff_{}.npy".format(suffix))
             np.save(save_name, adv_img - orig_img)
 
