@@ -19,6 +19,8 @@ from setup_cifar import CIFAR, CIFARModel
 from setup_mnist import MNIST, MNISTModel
 from setup_inception import ImageNet, InceptionModel
 
+from setup_codec import CODEC
+
 import Utils as util
 from blackbox_attack import ZOO, ZOO_AE, ZOO_RV, AutoZOOM
 import argparse
@@ -84,7 +86,14 @@ def main(args):
                 print("Argument batch_size is not used")
 
         if args["attack_method"] == "zoo_ae" or args["attack_method"] == "autozoom":
-            _, decoder = util.load_codec(args["codec_prefix"])
+            #_, decoder = util.load_codec(args["codec_prefix"])
+            if args["dataset"] == "mnist" or args["dataset"] == "cifar10":
+                codec = CODEC(model.image_size, model.num_channels, args["compress_mode"])
+            else:
+                codec = CODEC(model.image_size, model.num_channels, args["compress_mode"], resize=256)
+            print(args["codec_prefix"])
+            codec.load_codec(args["codec_prefix"])
+            decoder = codec.decoder
             print(decoder.input_shape)
             args["img_resize"] = decoder.input_shape[1]
             print("Using autoencoder, set the attack image size to:{}".format(args["img_resize"]))
@@ -205,6 +214,8 @@ if __name__ == "__main__":
 
         args["lr"] = 1e-2
 
+        args["compress_mode"] = 1
+
     # cifar10
     if args["dataset"] == "cifar10":
         if args["max_iterations"] == 0:
@@ -214,6 +225,8 @@ if __name__ == "__main__":
         if args["codec_prefix"] is None:
             args["codec_prefix"] = "codec/cifar10"
         args["lr"] = 1e-2
+
+        args["compress_mode"] = 2
 
     # imagenet
     if args["dataset"] == "imagenet":
@@ -246,6 +259,8 @@ if __name__ == "__main__":
         
         if args["codec_prefix"] is None:
             args["codec_prefix"] = "codec/imagenet"
+
+        args["compress_mode"] = 3
 
     if args["img_resize"] is not None:
         if args["attack_method"] == "zoo_ae" or args["attack_method"] == "autozoom":

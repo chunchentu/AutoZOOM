@@ -230,7 +230,7 @@ class InceptionModel:
     self.model = InceptionModelPrediction(sess, use_softmax)
 
   def predict(self, img):
-    if self.use_log:
+    if self.use_softmax:
       output_name = 'InceptionV3/Predictions/Softmax:0'
     else:
       output_name = 'InceptionV3/Predictions/Reshape:0'
