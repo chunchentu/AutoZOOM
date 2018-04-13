@@ -92,9 +92,6 @@ def ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, 
 
 class blackbox_attack:
     def __init__(self, sess, model, args):
-        
-        
-
         # data information
         self.num_channels = model.num_channels
         self.image_size = model.image_size
@@ -114,28 +111,29 @@ class blackbox_attack:
         self.CONFIDENCE = args["confidence"]
         self.modifier_size = args["img_resize"]
 
-        image_shape = (self.image_size, self.image_size, self.num_channels)
-        modifier_shape = (self.modifier_size, self.modifier_size, self.num_channels)
+        self.image_shape = (self.image_size, self.image_size, self.num_channels)
+        self.modifier_shape = (self.modifier_size, self.modifier_size, self.num_channels)
 
         # if (self.modifier_size == self.image_size) or (args["attack_method"] == "zoo_ae" or args["attack_method"] == "autozoom"):
-        if (self.modifier_size == self.image_size):
-            # not resizing image or using autoencoder
-            self.modifier = tf.placeholder(tf.float32, shape=(None,) + image_shape)
-            self.img_modifier = self.modifier
-        else:
-            # resizing image
-            self.modifier = tf.placeholder(tf.float32, shape=(None, None, None, None))
-            self.img_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size])
+        self.set_img_modifier()
+        # if (self.modifier_size == self.image_size):
+        #     # not resizing image or using autoencoder
+        #     self.modifier = tf.placeholder(tf.float32, shape=(None,) + image_shape)
+        #     self.img_modifier = self.modifier
+        # else:
+        #     # resizing image
+        #     self.modifier = tf.placeholder(tf.float32, shape=(None, None, None, None))
+        #     self.img_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size])
 
 
         # true image
-        self.timg = tf.Variable(np.zeros(image_shape), dtype=tf.float32)
+        self.timg = tf.Variable(np.zeros(self.image_shape), dtype=tf.float32)
         # true label
         self.tlab = tf.Variable(np.zeros(self.num_labels), dtype=tf.float32)
         self.const = tf.Variable(0.0, dtype=tf.float32)
 
         # operations to assign information
-        self.assign_timg = tf.placeholder(tf.float32, image_shape)
+        self.assign_timg = tf.placeholder(tf.float32, self.image_shape)
         self.assign_tlab = tf.placeholder(tf.float32, self.num_labels)
         self.assign_const = tf.placeholder(tf.float32)
 
@@ -153,7 +151,7 @@ class blackbox_attack:
             self.newimg = self.img_modifier + self.timg
 
         # the modifier beging updated and used
-        self.real_modifier = np.zeros((1,) + modifier_shape, dtype=np.float32)
+        self.real_modifier = np.zeros((1,) + self.modifier_shape, dtype=np.float32)
 
         self.output = model.predict(self.newimg)
 
@@ -195,6 +193,9 @@ class blackbox_attack:
         self.adam_epoch = np.ones(self.var_size, dtype = np.int32)
 
         self.stage = 0
+
+    def set_img_modifier(self):
+        pass
 
     def print_info(self):
         pass
@@ -363,7 +364,16 @@ class ZOO(blackbox_attack):
         self.grad = np.zeros(self.BATCH_SIZE, dtype = np.float32)
         self.hess = np.zeros(self.BATCH_SIZE, dtype = np.float32)
         self.solver = coordinate_ADAM
-    
+
+    def set_img_modifier(self):
+        if (self.modifier_size == self.image_size):
+            # not resizing image or using autoencoder
+            self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.image_shape)
+            self.img_modifier = self.modifier
+        else:
+            # resizing image
+            self.modifier = tf.placeholder(tf.float32, shape=(None, None, None, None))
+            self.img_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size])
 
     def get_eval_costs(self):
         return self.BATCH_SIZE*2
@@ -389,12 +399,12 @@ class ZOO(blackbox_attack):
 
 class ZOO_AE(ZOO):
     def __init__(self, sess, model, args, decoder):
+        self.decoder = decoder
         super().__init__(sess, model, args);
 
-        # load decoder
-        self.decoder = decoder
-        self.img_modifier = self.decoder(self.modifier )
-        
+    def set_img_modifier(self):
+        self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.modifier_shape)
+        self.img_modifier = self.decoder(self.modifier)
 
 class ZOO_RV(blackbox_attack):
     def __init__(self, sess, model, args):
@@ -402,6 +412,17 @@ class ZOO_RV(blackbox_attack):
         self.grad = np.zeros((1, self.var_size), dtype = np.float32)
         self.hess = np.zeros(self.BATCH_SIZE, dtype = np.float32)
         self.solver = ADAM
+        self.num_rand_vec = 1
+
+    def set_img_modifier(self):
+        if (self.modifier_size == self.image_size):
+            # not resizing image or using autoencoder
+            self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.image_shape)
+            self.img_modifier = self.modifier
+        else:
+            # resizing image
+            self.modifier = tf.placeholder(tf.float32, shape=(None, None, None, None))
+            self.img_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size])
 
     def get_eval_costs(self):
         return 2
@@ -418,23 +439,24 @@ class ZOO_RV(blackbox_attack):
         losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var})
         
         # self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.modifier_up, self.modifier_down, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise)
-        self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise)
+        self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise, self.num_rand_vec)
 
         return losses[0], l2s[0], loss1[0], loss2[0], scores[0], nimgs[0]
 
 class AutoZOOM(ZOO_RV):
     def __init__(self, sess, model, args, decoder):
+        self.decoder = decoder
         super().__init__(sess, model, args)
         self.num_rand_vec = 1
         self.post_success_num_rand_vec = args["num_rand_vec"]
         self.grad = np.zeros((self.num_rand_vec, self.var_size), dtype = np.float32)
         self.hess = np.zeros(self.BATCH_SIZE, dtype = np.float32)
         self.solver = ADAM
-        
 
-        self.decoder = decoder
+    def set_img_modifier(self):
+        self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.modifier_shape)
         self.img_modifier = self.decoder(self.modifier)
-        print(self.img_modifier)
+
 
     def post_success_setting(self):
         self.num_rand_vec = self.post_success_num_rand_vec
