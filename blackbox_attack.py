@@ -434,7 +434,9 @@ class ZOO_RV(blackbox_attack):
         indice = self.var_list[var_indice]
         
         self.beta = 1/(np.power(var_size, 1.5))
-        var_noise = np.random.uniform(size=(1, var_size), low=-0.5, high=0.5)
+        # var_noise = np.random.uniform(size=(1, var_size), low=-0.5, high=0.5)
+        var_noise = np.random.normal(loc=0, scale=1.0, size=(1, var_size))
+        var_noise = var_noise/np.linalg.norm(var_noise)
         var = np.concatenate((self.real_modifier, self.real_modifier + self.beta*var_noise.reshape(self.modifier_size, self.modifier_size, self.num_channels)), axis=0)
         losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var})
         
