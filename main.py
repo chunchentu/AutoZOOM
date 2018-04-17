@@ -84,6 +84,7 @@ def main(args):
         else:
             if args["batch_size"] is not None:
                 print("Argument batch_size is not used")
+                args["batch_size"] = 1 # force to be 1
 
         if args["attack_method"] == "zoo_ae" or args["attack_method"] == "autozoom":
             #_, decoder = util.load_codec(args["codec_prefix"])
