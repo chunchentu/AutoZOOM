@@ -18,7 +18,7 @@ python3 setup_inception.py
 This will download the inception_v3 model pre-trained for **imagenet**.
 
 # Autoencoder
-We provide the autoencoder for **mnist** and **cifar10**. The autoencoder for **imagenet** will be updated soon. The naming for encoder and decoder are *\<dataset>_<compress_mode>_encoder.h5* and *\<dataset>_<compress_mode>_decoder.h5*. The *compress_mode* is an integer indicating the compression rate of the additive noise. When *compress_mode*=1, the width and height are respectively reduced by 1/2 of the original size. For *compress_mode*=2, its width and height are reduced to 1/4. See `setup_codec.py` for more information about the autoencoder.
+We provide the autoencoder for **mnist** and **cifar10**. The autoencoder for **imagenet** will be updated soon. The naming for encoder and decoder are *\<dataset>_<compress_mode>_encoder.h5* and *\<dataset>_<compress_mode>_decoder.h5*. The *compress_mode* is an integer indicating the compression rate of the additive noise (attack space). When *compress_mode*=1, the width and height are respectively reduced by 1/2 of the original size. For *compress_mode*=2, its width and height are reduced to 1/4. See `setup_codec.py` for more information about the autoencoder.
 
 # Run attacks
 Several options can be used to configure the attacks:
