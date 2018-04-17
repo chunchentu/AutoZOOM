@@ -1,3 +1,12 @@
+## setup_codec.py -- setup the codec for autoencoder
+##
+## Copyright (C) 2018, Chun-Chen Tu <timtu@Umich.edu>
+##                     PaiShun Ting <paishun@umich.edu>
+##                     Pin-Yu Chen <Pin-Yu.Chen@ibm.com>
+## This program is licenced under the BSD 2-Clause licence,
+## contained in the LICENCE file in this directory.
+
+
 from tensorflow.contrib.keras.api.keras.models import Sequential
 from tensorflow.contrib.keras.api.keras.layers import Activation, Convolution2D, MaxPooling2D, Lambda, Input, UpSampling2D
 from tensorflow.contrib.keras.api.keras.layers import BatchNormalization
