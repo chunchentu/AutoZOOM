@@ -28,10 +28,10 @@ Several options can be used to configure the attacks:
 ### Attack methods
 
 We provide four kinds of attacking methods: **zoo**, **zoo_ae**, **zoo_rv** and **autozoom**.
-The method **zoo** uses the method proposed in [ZOO: Zeroth Order Optimization based Black-box Attacks to Deep Neural Networks without Training Substitute Models](https://arxiv.org/abs/1708.03999). For **zoo_ae**, autoencoders are used to reduce the size of attack space. Random vectors are used in **zoo_rv** for gradient estimation. In **autozoom**, both autoencoder and random vector are used for efficient blackbox attack. The attack method can be specified using `-a` or `--attach_method`.
+The method **zoo** uses the method proposed in [ZOO: Zeroth Order Optimization based Black-box Attacks to Deep Neural Networks without Training Substitute Models](https://arxiv.org/abs/1708.03999). For **zoo_ae**, autoencoders are used to reduce the size of attack space. Random vectors are used in **zoo_rv** for gradient estimation. In **autozoom**, both autoencoder and random vector are used for efficient blackbox attack. The attack method can be specified using `-a` or `--attack_method`.
 
 ### Batch size
-For **zoo** and **zoo_ae**, attacks are performed in batch. Use `-b` or `--batch_size` to specify the number of pixel updated within one iteration. For **zoo_rv**, **autozoom**, this option is not valid.
+For **zoo** and **zoo_ae**, attacks are performed in batch. Use `-b` or `--batch_size` to specify the number of pixels updated within one iteration. For **zoo_rv**, **autozoom**, this option is not valid.
 
 ### Initial constant and switch iterations
 The attacking procedure uses a constant to determine the preference between the likelihood of a success attack and the distortion of the image. A large constant results in fast attack (less iteration) but also indicates large distortion. This constant will be adjusted after several iterations. To specify the initial setting of the constant, use `-c` or `--init_const`. The number of iterations to update the constant can be specified using `--switch_iterations`.
@@ -41,7 +41,7 @@ The attacking procedure uses a constant to determine the preference between the 
 For **zoo** and **zoo_rv**, you can specify the size on the attacking space using `--img_resize`. For **zoo_ae** and **autozoom**  the size of the attacking space is defined by the autoencoder.
 
 ### Dataset
-Specify the dataset using `-d` or `--dataset`
+Specify the dataset using `-d` or `--dataset`.
 
 ### Number of images to attack
 Use `-n` or `--num_img` to specify the number of images to attack. Images that are correctly classified by the classifier would be randomly selected.
