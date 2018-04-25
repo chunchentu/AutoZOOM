@@ -146,7 +146,7 @@ class blackbox_attack:
             cond2 = tf.cast(tf.less_equal(self.img_modifier, self.modifier_up), tf.float32)
             cond3 = tf.cast(tf.greater(self.img_modifier, self.modifier_down), tf.float32)
             cond4 = tf.cast(tf.less_equal(self.img_modifier, self.modifier_down), tf.float32)
-            self.img_modifier = tf.multiply(cond1, self.modifier_up) + tf.multiply(tf.multiply(cond3, cond3), self.img_modifier) + tf.multiply(cond4, self.modifier_down)
+            self.img_modifier = tf.multiply(cond1, self.modifier_up) + tf.multiply(tf.multiply(cond2, cond3), self.img_modifier) + tf.multiply(cond4, self.modifier_down)
 
             self.newimg = self.img_modifier + self.timg
 
