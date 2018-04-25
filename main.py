@@ -58,7 +58,16 @@ def main(args):
             else:
                 shift_index = False
 
-            all_orig_img, all_target_labels, all_orig_labels, all_orig_img_id = util.generate_attack_data_set(data, args["num_img"], args["img_offset"], model, attack_type=args["attack_type"], random_target=args["random_target"], shift_index=shift_index)
+        if args["random_target"] and args["dataset"] == "imagenet":
+            # find all possible class
+            all_class = np.unique(np.argmax(data.test_labels, 1))
+            all_orig_img, all_target_labels, all_orig_labels, all_orig_img_id = util.generate_attack_data_set(data, args["num_img"], args["img_offset"], model, attack_type=args["attack_type"], random_target_class=all_class, shift_index=shift_index)
+        elif args["random_target"]:
+            # random target on all possible classes
+            class_num = data.test_labels.shape[1]
+            all_orig_img, all_target_labels, all_orig_labels, all_orig_img_id = util.generate_attack_data_set(data, args["num_img"], args["img_offset"], model, attack_type=args["attack_type"], random_target_class=list(range(class_num)), shift_index=shift_index)
+        else:
+            all_orig_img, all_target_labels, all_orig_labels, all_orig_img_id = util.generate_attack_data_set(data, args["num_img"], args["img_offset"], model, attack_type=args["attack_type"], shift_index=shift_index)
 
 
         # check attack data

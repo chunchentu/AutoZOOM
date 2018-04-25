@@ -124,7 +124,7 @@ def generate_data(data, id, target_label):
 
     return inputs, target_vec
 
-def generate_attack_data_set(data, num_sample, img_offset, model, attack_type="targeted", random_target=False, shift_index=False):
+def generate_attack_data_set(data, num_sample, img_offset, model, attack_type="targeted", random_target_class=None, shift_index=False):
     """
     Generate the data for conducting attack. Only select the data being classified correctly.
     """
@@ -149,11 +149,12 @@ def generate_attack_data_set(data, num_sample, img_offset, model, attack_type="t
     for sample_index in range(num_sample):
 
         if attack_type == "targeted":
-            if random_target:
+            if random_target_class is not None:
                 # randomly select one class to attack, except the true labels
-                seq = np.random.choice(range(0, class_num), 1)
+                print(random_target_class)
+                seq = np.random.choice(random_target_class, 1)
                 while seq == true_labels[img_offset+sample_index]:
-                    seq = np.random.choice(range(0, class_num), 1)
+                    seq = np.random.choice(random_target_class, 1)
                 
             else:
                 seq = list(range(class_num))
