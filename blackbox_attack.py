@@ -1,6 +1,6 @@
 ## blackbox_attack.py -- attack a black-box network optimizing for l_2 distance using different methods: zoo, zoo_ae, zoo_rv and autozoom
 ##
-## Copyright (C) 2018, Chun-Chen Tu <timtu@Umich.edu>
+## Copyright (C) 2018, Chun-Chen Tu <timtu@umich.edu>
 ##                     PaiShun Ting <paishun@umich.edu>
 ##                     Pin-Yu Chen <Pin-Yu.Chen@ibm.com>
 ## Copyright (C) 2017, Huan Zhang <ecezhang@ucdavis.edu>.
@@ -14,6 +14,7 @@ import os
 import tensorflow as tf
 import numpy as np
 import scipy.misc
+from numba import jit
 import math
 import time
 import Utils as util
@@ -25,7 +26,7 @@ ADAM_BETA1 = 0.9
 ADAM_BETA2 = 0.999
 
 
-# @jit(nopython=True)
+#@jit(nopython=True)
 # def coordinate_ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, up, down, lr, adam_epoch, beta1, beta2, proj):
 def coordinate_ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, lr, adam_epoch, beta1, beta2, proj):
     for i in range(batch_size):
@@ -42,7 +43,7 @@ def coordinate_ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real
     corr = (np.sqrt(1 - np.power(beta2,epoch))) / (1 - np.power(beta1, epoch))
     m = real_modifier.reshape(-1)
     old_val = m[indice] 
-    old_val -= lr * corr * mt / (np.sqrt(vt) + 1e-8)
+    old_val -= lr * corr * mt / (np.sqrt(vt)  + 1e-8 )
     # set it back to [-0.5, +0.5] region
     # if proj:
     #     old_val = np.maximum(np.minimum(old_val, up[indice]), down[indice])
@@ -81,7 +82,7 @@ def ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, 
     corr = (np.sqrt(1 - np.power(beta2,epoch))) / (1 - np.power(beta1, epoch))
     m = real_modifier.reshape(-1)
     old_val = m[indice] 
-    old_val -= lr * corr * mt / (np.sqrt(vt) + 1e-8)
+    old_val -= lr * corr * mt / (np.sqrt(vt)  + 1e-8 )
     # set it back to [-0.5, +0.5] region
     # if proj:
     #     old_val = np.maximum(np.minimum(old_val, up[indice]), down[indice])
@@ -155,13 +156,18 @@ class blackbox_attack:
 
         self.output = model.predict(self.newimg)
 
+
         # distortion to the input data
         if self.USE_TANH:
             self.l2dist = tf.reduce_sum(tf.square(self.newimg-tf.tanh(self.timg)/2), [1,2,3])
+            # self.l2dist = reduce_sum_det(tf.square(self.newimg-tf.tanh(self.timg)/2))
         else:
             self.l2dist = tf.reduce_sum(tf.square(self.newimg - self.timg), [1,2,3])
+            # self.l2dist = reduce_sum_det(tf.square(self.newimg - self.timg))
+
 
         self.real = tf.reduce_sum((self.tlab)*self.output,1)
+        # self.real = reduce_sum_det((self.tlab)*self.output)
         self.other = tf.reduce_max((1-self.tlab)*self.output - (self.tlab*10000),1)
 
         if self.ATTACK_TYPE == "targeted":
@@ -193,6 +199,8 @@ class blackbox_attack:
         self.adam_epoch = np.ones(self.var_size, dtype = np.int32)
 
         self.stage = 0
+
+        self.init_op = tf.global_variables_initializer()
 
     def set_img_modifier(self):
         pass
@@ -250,6 +258,10 @@ class blackbox_attack:
 
         # clear the modifier
         self.real_modifier.fill(0.0)
+        ####### load modifer from previous file
+        #print("load modifier")
+        #self.real_modifier = np.load("modifier_5739.npy")
+
 
         # the over all best l2, score, and image attack
         o_bestl2 = 1e10
@@ -260,6 +272,9 @@ class blackbox_attack:
         # inner best l2 and scores
         bestl2 = 1e10
         bestscore = -1
+
+
+        self.sess.run(self.init_op)
 
         # setup the variables
         self.sess.run(self.setup, {self.assign_timg: img,
@@ -278,12 +293,16 @@ class blackbox_attack:
 
         self.eval_costs = 0
 
+        np.random.seed(1234)
         attack_begin_time = time.time()
         for iteration in range(self.MAX_ITER):
 
             if iteration % self.PRINT_EVERY == 0:
                 self.current_iter = iteration
                 self.print_info()
+
+            #if iteration % 100 ==0:
+            #    np.save("debug/zoo_modifier_{}.npy".format(iteration), self.real_modifier)
 
             # perform the attack 
             l, l2, loss1, loss2, score, nimg = self.blackbox_optimizer(iteration)
@@ -293,6 +312,9 @@ class blackbox_attack:
             if loss1 == 0.0 and last_loss1 != 0.0 and self.stage == 0:
                 # we have reached the fine tunning point
                 # reset ADAM to avoid overshoot
+                # save modifier for debugging
+                #print("save modifier")
+                #np.save("modifier_{}.npy".format(iteration), self.real_modifier)
                 print("##### Reset ADAM #####")
                 self.mt.fill(0.0)
                 self.vt.fill(0.0)
@@ -309,6 +331,7 @@ class blackbox_attack:
                 if o_bestl2 == 1e10:
                     print("[STATS][FirstAttack] iter:{}, const:{}, cost:{}, time:{:.3f}, size:{}, loss:{:.5g}, loss1:{:.5g}, loss2:{:.5g}, l2:{:.5g}".format(iteration, CONST, self.eval_costs, self.train_timer, self.real_modifier.shape, l, loss1, loss2, l2))
                     self.post_success_setting()
+                    lower_bound = 0.0
                 o_bestl2 = l2
                 o_bestscore = np.argmax(score)
                 o_bestattack = nimg
@@ -316,7 +339,7 @@ class blackbox_attack:
             self.train_timer += time.time() - attack_begin_time
 
 
-            # switch constant when reach switch iterations
+            # switch constant when reaching switch iterations
             if iteration % self.SWITCH_ITER == 0 and iteration != 0:
                 if self.compare(bestscore, np.argmax(lab)) and bestscore != -1:
                     # success, divide const by two
@@ -335,13 +358,18 @@ class blackbox_attack:
                     elif CONST < 1e8:
                         CONST *= 10
                     else:
-                        print("CONST < 1e8, no change")
+                        print("CONST > 1e8, no change")
                     
                     print("iter:{} new constant:{}".format(iteration, CONST))
 
                 bestl2 = 1e10
                 bestscore = -1
                 self.current_const = CONST
+
+                if self.stage == 1:
+                    self.mt.fill(0.0)
+                    self.vt.fill(0.0)
+                    self.adam_epoch.fill(1)
 
                 # update constant
                 self.sess.run(self.setup, {self.assign_timg: img,
@@ -390,11 +418,11 @@ class ZOO(blackbox_attack):
         for i in range(self.BATCH_SIZE):
             var[i * 2 + 1].reshape(-1)[indice[i]] += 0.0001
             var[i * 2 + 2].reshape(-1)[indice[i]] -= 0.0001
-        losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var})
+        losses, l2s, loss1, loss2, scores, nimgs,real, other = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg,self.real,self.other], feed_dict={self.modifier: var})
         
         # self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.modifier_up, self.modifier_down, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH)
         self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH)
-
+        #np.savez("compare/zoo_{}".format(iteration), indice=indice, real_modifier=self.real_modifier, losses=losses, loss1=loss1, loss2=loss2, scores=scores, real=real, other=other)
         return losses[0], l2s[0], loss1[0], loss2[0], scores[0], nimgs[0]
 
 class ZOO_AE(ZOO):
@@ -409,23 +437,26 @@ class ZOO_AE(ZOO):
 class ZOO_RV(blackbox_attack):
     def __init__(self, sess, model, args):
         super().__init__(sess, model, args);
+        self.num_rand_vec = 1
         self.grad = np.zeros((1, self.var_size), dtype = np.float32)
         self.hess = np.zeros(self.BATCH_SIZE, dtype = np.float32)
         self.solver = ADAM
         self.num_rand_vec = 1
 
     def set_img_modifier(self):
+
         if (self.modifier_size == self.image_size):
             # not resizing image or using autoencoder
             self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.image_shape)
             self.img_modifier = self.modifier
         else:
+            print("ZOO_RV")
             # resizing image
             self.modifier = tf.placeholder(tf.float32, shape=(None, None, None, None))
             self.img_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size])
 
     def get_eval_costs(self):
-        return 2
+        return self.num_rand_vec + 1
 
     def blackbox_optimizer(self, iteration):
         var_size = self.real_modifier.size
@@ -433,17 +464,28 @@ class ZOO_RV(blackbox_attack):
         var_indice = list(range(var_size))
         indice = self.var_list[var_indice]
         
-        self.beta = 1/(np.power(var_size, 1.5))
-        # var_noise = np.random.uniform(size=(1, var_size), low=-0.5, high=0.5)
-        var_noise = np.random.normal(loc=0, scale=1.0, size=(1, var_size))
+        #self.beta = 1/(np.power(var_size, 1.5))
+        self.beta = 1/(var_size)
+        self.beta = 0.0001
+        # print(self.beta)
+        # self.beta = 1/(np.power(32*32*3, 1.5))
+        #var_noise = np.random.uniform(size=(self.num_rand_vec, var_size), low=-0.5, high=0.5)
+        var_noise = np.random.normal(loc=0, scale=1.0, size=(self.num_rand_vec, var_size))
         var_noise = var_noise/np.linalg.norm(var_noise)
-        var = np.concatenate((self.real_modifier, self.real_modifier + self.beta*var_noise.reshape(self.modifier_size, self.modifier_size, self.num_channels)), axis=0)
-        losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var})
-        
+        print("iter:{} noise:{:.5g}".format(iteration, np.sum(var_noise)))
+        var = np.concatenate((self.real_modifier, self.real_modifier + self.beta*var_noise.reshape(self.num_rand_vec, self.modifier_size, self.modifier_size, self.num_channels)), axis=0)
+        losses, l2s, loss1, loss2, scores, nimgs, img_mod = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg, self.img_modifier], feed_dict={self.modifier: var})
+
+        print("mod:{:.4f}, min:{}, max:{}".format(np.sum(img_mod**2), np.min(img_mod), np.max(img_mod)))
         # self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.modifier_up, self.modifier_down, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise)
         self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise, self.num_rand_vec)
 
         return losses[0], l2s[0], loss1[0], loss2[0], scores[0], nimgs[0]
+
+    def post_success_setting(self):
+        self.num_rand_vec = 1
+        self.grad = np.zeros((self.num_rand_vec, self.var_size), dtype = np.float32)
+        print("Set random vector number to :{}".format(self.num_rand_vec))
 
 class AutoZOOM(ZOO_RV):
     def __init__(self, sess, model, args, decoder):
@@ -456,8 +498,10 @@ class AutoZOOM(ZOO_RV):
         self.solver = ADAM
 
     def set_img_modifier(self):
+        print("AutoZOOM")
         self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.modifier_shape)
-        self.img_modifier = self.decoder(self.modifier)
+        self.img_modifier = self.decoder.predict(self.modifier)
+
 
 
     def post_success_setting(self):

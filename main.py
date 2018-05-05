@@ -25,10 +25,11 @@ import Utils as util
 from blackbox_attack import ZOO, ZOO_AE, ZOO_RV, AutoZOOM
 import argparse
 
+from l2_attack_black_bs import BlackBoxL2_bs
 
 def main(args):
     with tf.Session() as sess:
-        print("Loading data and classifical model: {}".format(args["dataset"]))
+        print("Loading data and classification model: {}".format(args["dataset"]))
         if args['dataset'] == "mnist":
             data, model =  MNIST(), MNISTModel("models/mnist", sess, use_softmax=True)
         elif args['dataset'] == "cifar10":
@@ -111,6 +112,13 @@ def main(args):
         # setup attack
         if args["attack_method"] == "zoo":
             blackbox_attack = ZOO(sess, model, args)
+        elif args["attack_method"] == "zoo2":
+            attack = BlackBoxL2_bs(sess, model, batch_size=128, max_iterations=args['max_iterations'], print_every=args['print_every'],
+                     early_stop_iters=100000, confidence=0, learning_rate = args['lr'], initial_const=args['init_const'], 
+                     binary_search_steps=1, targeted=True, use_log=True, use_tanh=args['use_tanh'], 
+                     use_resize=True, adam_beta1=0.9, adam_beta2=0.999, reset_adam_after_found=True,
+                     solver="adam", save_ckpts=None, load_checkpoint=None, start_iter=0,
+                     init_size=32, use_importance=False, switch_iterations=args["switch_iterations"])
         elif args["attack_method"] == "zoo_ae":
             blackbox_attack = ZOO_AE(sess, model, args, decoder)
         elif args["attack_method"] == "zoo_rv":
@@ -138,7 +146,10 @@ def main(args):
             # print information
             print("[Info][Start]{}: test_index:{}, true label:{}, target label:{}".format(i, test_index, true_class, target_class))
             timestart = time.time()
-            adv_img = blackbox_attack.attack(orig_img, target)
+            if args["attack_method"] == "zoo2":
+                adv, const = attack.attack_batch(orig_img, target)
+            else:
+                adv_img = blackbox_attack.attack(orig_img, target)
             timeend = time.time()
 
             if len(adv_img.shape) == 3:
@@ -188,7 +199,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-a", "--attack_method", default="autozoom", choices=["zoo", "zoo_ae", "zoo_rv", "autozoom"], help="the attack method")
+    parser.add_argument("-a", "--attack_method", default="autozoom", choices=["zoo", "zoo2", "zoo_ae", "zoo_rv", "autozoom"], help="the attack method")
     parser.add_argument("-b", "--batch_size", type=int, default=None, help="the batch size for zoo, zoo_ae attack")
     parser.add_argument("-c", "--init_const", type=float, default=1, help="the initial setting of the constant lambda")
     parser.add_argument("-d", "--dataset", default="mnist", choices=["mnist", "cifar10", "imagenet"])
