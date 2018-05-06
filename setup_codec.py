@@ -1,12 +1,3 @@
-## setup_codec.py -- setup the codec for autoencoder
-##
-## Copyright (C) 2018, Chun-Chen Tu <timtu@Umich.edu>
-##                     PaiShun Ting <paishun@umich.edu>
-##                     Pin-Yu Chen <Pin-Yu.Chen@ibm.com>
-## This program is licenced under the BSD 2-Clause licence,
-## contained in the LICENCE file in this directory.
-
-
 from tensorflow.contrib.keras.api.keras.models import Sequential
 from tensorflow.contrib.keras.api.keras.layers import Activation, Convolution2D, MaxPooling2D, Lambda, Input, UpSampling2D
 from tensorflow.contrib.keras.api.keras.layers import BatchNormalization
@@ -17,7 +8,7 @@ import tensorflow as tf
 import os
 
 class CODEC:
-    def __init__(self, img_size, num_channels, compress_mode=1, clip_value=0.5, resize=None):
+    def __init__(self, img_size, num_channels, compress_mode=1, resize=None):
 
         self.compress_mode = compress_mode
         working_img_size = img_size
@@ -30,50 +21,50 @@ class CODEC:
         else:
             encoder_model.add(Convolution2D( 16, 3, strides=1,padding='same', input_shape=(img_size, img_size, num_channels)))
         
-        BatchNormalization(axis=3)
-        encoder_model.add(Activation("relu"))
+        encoder_model.add(BatchNormalization())
+        encoder_model.add(Activation("tanh"))
         encoder_model.add(MaxPooling2D(pool_size=2, strides=2, padding='same'))
         working_img_size //= 2
 
         if compress_mode >=2:
             encoder_model.add(Convolution2D( 16, 3, strides=1,padding='same'))
-            BatchNormalization(axis=3)
-            encoder_model.add(Activation("relu"))
+            encoder_model.add(BatchNormalization())
+            encoder_model.add(Activation("tanh"))
             encoder_model.add(MaxPooling2D(pool_size=2, strides=2, padding='same'))
             working_img_size //= 2
 
         if compress_mode >=3:
             encoder_model.add(Convolution2D( 16, 3, strides=1,padding='same'))
-            BatchNormalization(axis=3)
-            encoder_model.add(Activation("relu"))
+            encoder_model.add(BatchNormalization())
+            encoder_model.add(Activation("tanh"))
             encoder_model.add(MaxPooling2D(pool_size=2, strides=2, padding='same'))
             working_img_size //= 2
 
         encoder_model.add(Convolution2D(num_channels, 3, strides=1, padding='same'))
-        BatchNormalization(axis=3)
+        encoder_model.add(BatchNormalization())
         decoder_model = Sequential()
         decoder_model.add(encoder_model)
 
         if compress_mode >=3:
             working_img_size *= 2
             decoder_model.add(Convolution2D(16, 3, strides=1, padding='same'))
-            BatchNormalization(axis=3)
-            decoder_model.add(Activation("relu"))
+            decoder_model.add(BatchNormalization())
+            decoder_model.add(Activation("tanh"))
             #decoder_model.add(Lambda(lambda image: tf.image.resize_images(image, (working_img_size, working_img_size))))
             decoder_model.add(UpSampling2D((2, 2), data_format='channels_last'))
 
         if compress_mode >=2:
             working_img_size *= 2
             decoder_model.add(Convolution2D(16, 3, strides=1, padding='same'))
-            BatchNormalization(axis=3)
-            decoder_model.add(Activation("relu"))
+            decoder_model.add(BatchNormalization())
+            decoder_model.add(Activation("tanh"))
             #decoder_model.add(Lambda(lambda image: tf.image.resize_images(image, (working_img_size, working_img_size))))
             decoder_model.add(UpSampling2D((2, 2), data_format='channels_last'))
 
         working_img_size *= 2
         decoder_model.add(Convolution2D(16, 3, strides=1, padding='same'))
-        BatchNormalization(axis=3)
-        decoder_model.add(Activation("relu"))
+        decoder_model.add(BatchNormalization())
+        decoder_model.add(Activation("tanh"))
         # decoder_model.add(Lambda(lambda image: tf.image.resize_images(image, (img_size, img_size))))
         decoder_model.add(UpSampling2D((2, 2), data_format='channels_last'))
 

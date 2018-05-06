@@ -466,17 +466,20 @@ class ZOO_RV(blackbox_attack):
         
         #self.beta = 1/(np.power(var_size, 1.5))
         self.beta = 1/(var_size)
-        self.beta = 0.0001
+        self.beta = 0.1
         # print(self.beta)
         # self.beta = 1/(np.power(32*32*3, 1.5))
         #var_noise = np.random.uniform(size=(self.num_rand_vec, var_size), low=-0.5, high=0.5)
         var_noise = np.random.normal(loc=0, scale=1.0, size=(self.num_rand_vec, var_size))
         var_noise = var_noise/np.linalg.norm(var_noise)
-        print("iter:{} noise:{:.5g}".format(iteration, np.sum(var_noise)))
+        #print("iter:{} noise:{:.5g}".format(iteration, np.sum(var_noise)))
         var = np.concatenate((self.real_modifier, self.real_modifier + self.beta*var_noise.reshape(self.num_rand_vec, self.modifier_size, self.modifier_size, self.num_channels)), axis=0)
-        losses, l2s, loss1, loss2, scores, nimgs, img_mod = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg, self.img_modifier], feed_dict={self.modifier: var})
-
-        print("mod:{:.4f}, min:{}, max:{}".format(np.sum(img_mod**2), np.min(img_mod), np.max(img_mod)))
+        # losses, l2s, loss1, loss2, scores, nimgs, img_mod, temp_mod = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg, self.img_modifier, self.temp_modifier], feed_dict={self.modifier: var})
+        losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var})
+        # var_decode = self.decoder.predict(var)
+        # print("tf mod:{:.4f}, min:{}, max:{}".format(np.sum(img_mod**2), np.min(img_mod), np.max(img_mod)))
+        # print("predict mod:{:.4f}, min:{}, max:{}".format(np.sum(var_decode**2), np.min(var_decode), np.max(var_decode)))
+        # print("temp mod:{:.4f}, min:{}, max:{}".format(np.sum(temp_mod**2), np.min(temp_mod), np.max(temp_mod)))
         # self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.modifier_up, self.modifier_down, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise)
         self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise, self.num_rand_vec)
 
@@ -500,7 +503,8 @@ class AutoZOOM(ZOO_RV):
     def set_img_modifier(self):
         print("AutoZOOM")
         self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.modifier_shape)
-        self.img_modifier = self.decoder.predict(self.modifier)
+        self.img_modifier = self.decoder(self.modifier)
+        self.temp_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size])
 
 
 
