@@ -13,11 +13,12 @@ import os
 import sys
 import random
 import time
+import copy
 import numpy as np
 import tensorflow as tf
 from setup_cifar import CIFAR, CIFARModel
 from setup_mnist import MNIST, MNISTModel
-from setup_inception import ImageNet, InceptionModel
+from setup_inception import ImageNet, InceptionModel, ImageNetDataNP
 
 from setup_codec import CODEC
 
@@ -35,7 +36,11 @@ def main(args):
         elif args['dataset'] == "cifar10":
             data, model = CIFAR(), CIFARModel("models/cifar", sess, use_softmax=True)
         elif args['dataset'] == "imagenet":
-            data, model = ImageNet(data_path=args["imagenet_dir"], targetFile=args["attack_single_img"]), InceptionModel(sess, use_softmax=True)
+            # data, model = ImageNet(data_path=args["imagenet_dir"], targetFile=args["attack_single_img"]), InceptionModel(sess, use_softmax=True)
+            data, model = ImageNetDataNP(), InceptionModel(sess, use_softmax=True)
+        elif args['dataset'] == "imagenet_np":
+            data, model = ImageNetDataNP(), InceptionModel(sess, use_softmax=True)
+
 
         if len(data.test_labels) < args["num_img"]:
             raise Exception("No enough data, only have {} but need {}".format(len(data.test_labels), args["num_img"]))
@@ -54,12 +59,12 @@ def main(args):
                 target_labels = orig_labels
         else:
             # generate attack set
-            if args["dataset"] == "imagenet":
+            if args["dataset"] == "imagenet" or args["dataset"] == "imagenet_np":
                 shift_index = True
             else:
                 shift_index = False
 
-        if args["random_target"] and args["dataset"] == "imagenet":
+        if args["random_target"] and (args["dataset"] == "imagenet" or args["dataset"] == "imagenet_np"):
             # find all possible class
             all_class = np.unique(np.argmax(data.test_labels, 1))
             all_orig_img, all_target_labels, all_orig_labels, all_orig_img_id = util.generate_attack_data_set(data, args["num_img"], args["img_offset"], model, attack_type=args["attack_type"], random_target_class=all_class, shift_index=shift_index)
@@ -70,8 +75,7 @@ def main(args):
         else:
             all_orig_img, all_target_labels, all_orig_labels, all_orig_img_id = util.generate_attack_data_set(data, args["num_img"], args["img_offset"], model, attack_type=args["attack_type"], shift_index=shift_index)
 
-
-        # check attack data
+                # check attack data
         # for i in range(len(orig_img_id)):
         #     tar_lab = np.argmax(target_labels[i])
         #     orig_lab = np.argmax(orig_labels[i])
@@ -112,19 +116,12 @@ def main(args):
         # setup attack
         if args["attack_method"] == "zoo":
             blackbox_attack = ZOO(sess, model, args)
-        elif args["attack_method"] == "zoo2":
-            attack = BlackBoxL2_bs(sess, model, batch_size=128, max_iterations=args['max_iterations'], print_every=args['print_every'],
-                     early_stop_iters=100000, confidence=0, learning_rate = args['lr'], initial_const=args['init_const'], 
-                     binary_search_steps=1, targeted=True, use_log=True, use_tanh=args['use_tanh'], 
-                     use_resize=True, adam_beta1=0.9, adam_beta2=0.999, reset_adam_after_found=True,
-                     solver="adam", save_ckpts=None, load_checkpoint=None, start_iter=0,
-                     init_size=32, use_importance=False, switch_iterations=args["switch_iterations"])
         elif args["attack_method"] == "zoo_ae":
             blackbox_attack = ZOO_AE(sess, model, args, decoder)
         elif args["attack_method"] == "zoo_rv":
             blackbox_attack = ZOO_RV(sess, model, args)
         elif args["attack_method"] == "autozoom":
-            blackbox_attack = AutoZOOM(sess, model, args, decoder)
+            blackbox_attack = AutoZOOM(sess, model, args, decoder, codec)
 
 
         save_prefix = os.path.join(args["save_path"], args["dataset"], args["attack_method"], args["attack_type"])
@@ -133,6 +130,7 @@ def main(args):
 
         total_success = 0
         l2_total = 0
+
         
         for i in range(all_orig_img_id.size):
             orig_img = all_orig_img[i:i+1]
@@ -145,11 +143,17 @@ def main(args):
 
             # print information
             print("[Info][Start]{}: test_index:{}, true label:{}, target label:{}".format(i, test_index, true_class, target_class))
+            if args["attack_method"] == "zoo_ae" or args["attack_method"] == "autozoom":
+                #print ae info
+                temp_img = all_orig_img[i:i+1]
+                encode_img = codec.encoder.predict(temp_img)
+                decode_img = codec.decoder.predict(encode_img)
+                diff_img = (decode_img - temp_img)
+                diff_mse = np.mean(diff_img.reshape(-1)**2)
+                print("[Info][AE] MSE:{:.4f}".format(diff_mse))
+
             timestart = time.time()
-            if args["attack_method"] == "zoo2":
-                adv, const = attack.attack_batch(orig_img, target)
-            else:
-                adv_img = blackbox_attack.attack(orig_img, target)
+            adv_img = blackbox_attack.attack(orig_img, target)
             timeend = time.time()
 
             if len(adv_img.shape) == 3:
@@ -202,7 +206,7 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--attack_method", default="autozoom", choices=["zoo", "zoo2", "zoo_ae", "zoo_rv", "autozoom"], help="the attack method")
     parser.add_argument("-b", "--batch_size", type=int, default=None, help="the batch size for zoo, zoo_ae attack")
     parser.add_argument("-c", "--init_const", type=float, default=1, help="the initial setting of the constant lambda")
-    parser.add_argument("-d", "--dataset", default="mnist", choices=["mnist", "cifar10", "imagenet"])
+    parser.add_argument("-d", "--dataset", default="mnist", choices=["mnist", "cifar10", "imagenet", "imagenet_np"])
     parser.add_argument("-n", "--num_img", type=int, default=100, help = "number of test images to attack")
     parser.add_argument("-m", "--max_iterations", type=int, default=0, help = "set 0 to use default value")
     parser.add_argument("-p", "--print_every", type=int, default=100, help="print information every PRINT_EVERY iterations")
@@ -250,7 +254,7 @@ if __name__ == "__main__":
         args["compress_mode"] = 2
 
     # imagenet
-    if args["dataset"] == "imagenet":
+    if args["dataset"] == "imagenet" or args["dataset"] == "imagenet_np":
         if args["max_iterations"] == 0:
             if args["attack_method"] == "zoo_rv" or args["attack_method"] == "autozoom":
                 args["max_iterations"] = 100000

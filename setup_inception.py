@@ -47,7 +47,7 @@ import random
 import tarfile
 import scipy.misc
 import re
-
+from tensorflow.contrib.keras.api.keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 from six.moves import urllib
 import tensorflow as tf
@@ -378,7 +378,48 @@ class ImageNet:
       print("Read target file {}".format(targetFile))
 
   
+class ImageNetDataGen:
+  def __init__(self, train_dir, validate_dir, batch_size=100, data_augmentation=True):
+    if data_augmentation:
+      print("Enable data augmentation")
+      train_datagen = ImageDataGenerator(
+                        #rescale=1./255,
+                        preprocessing_function=lambda x: x/255-0.5,
+                        shear_range=0.2,
+                        zoom_range=0.2,
+                        width_shift_range=0.3,
+                        height_shift_range=0.3,
+                        horizontal_flip=True,
+                        fill_mode='nearest')
+    else:
+      print("Disable data augmentation")
+      train_datagen = ImageDataGenerator(preprocessing_function=lambda x: x/255-0.5)
+    validation_datagen = ImageDataGenerator(preprocessing_function=lambda x: x/255-0.5)
+    train_generator_flow = train_datagen.flow_from_directory(
+                        train_dir,
+                        target_size=(299, 299),  
+                        batch_size=batch_size,
+                        class_mode="input")  
 
+    # this is a similar generator, for validation data
+    validation_generator_flow = validation_datagen.flow_from_directory(
+                                validate_dir,
+                                target_size=(299, 299),
+                                batch_size=batch_size,
+                                class_mode="input")
+    self.train_generator_flow = train_generator_flow
+    self.validation_generator_flow = validation_generator_flow
+
+class ImageNetDataNP:
+  def __init__(self):
+    train_data = np.load("imagenet_train_data.npy")
+    train_labels = np.load("imagenet_train_labels.npy")
+    test_data = np.load("imagenet_test_data.npy")
+    test_labels = np.load("imagenet_test_labels.npy")
+
+    self.test_data = test_data
+    self.test_labels = test_labels
+    # self.train_data = train_data
 
 if __name__ == '__main__':
   tf.app.run()
