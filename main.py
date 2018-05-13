@@ -16,6 +16,7 @@ import time
 import copy
 import numpy as np
 import tensorflow as tf
+import scipy.misc
 from setup_cifar import CIFAR, CIFARModel
 from setup_mnist import MNIST, MNISTModel
 from setup_inception import ImageNet, InceptionModel, ImageNetDataNP
@@ -105,7 +106,7 @@ def main(args):
             if args["dataset"] == "mnist" or args["dataset"] == "cifar10":
                 codec = CODEC(model.image_size, model.num_channels, args["compress_mode"])
             else:
-                codec = CODEC(model.image_size, model.num_channels, args["compress_mode"], resize=256)
+                codec = CODEC(128, model.num_channels, args["compress_mode"])
             print(args["codec_prefix"])
             codec.load_codec(args["codec_prefix"])
             decoder = codec.decoder
@@ -145,7 +146,11 @@ def main(args):
             print("[Info][Start]{}: test_index:{}, true label:{}, target label:{}".format(i, test_index, true_class, target_class))
             if args["attack_method"] == "zoo_ae" or args["attack_method"] == "autozoom":
                 #print ae info
-                temp_img = all_orig_img[i:i+1]
+                if args["dataset"] == "mnist" or args["dataset"] == "cifar10":
+                    temp_img = all_orig_img[i:i+1]
+                else:
+                    temp_img = scipy.misc.imresize(all_orig_img[i], (128,128))
+                    temp_img = np.expand_dims(temp_img, axis=0)
                 encode_img = codec.encoder.predict(temp_img)
                 decode_img = codec.decoder.predict(encode_img)
                 diff_img = (decode_img - temp_img)
@@ -279,13 +284,13 @@ if __name__ == "__main__":
             if args["imagenet_dir"] is None:
                 raise Exception("Selecting imagenet as dataset but the path to the imagenet images are not set.")
 
-        args["use_tanh"] = True
+        args["use_tanh"] = False
         args["lr"] = 2e-3
         
         if args["codec_prefix"] is None:
             args["codec_prefix"] = "codec/imagenet"
 
-        args["compress_mode"] = 3
+        args["compress_mode"] = 2
 
     if args["img_resize"] is not None:
         if args["attack_method"] == "zoo_ae" or args["attack_method"] == "autozoom":

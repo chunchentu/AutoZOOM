@@ -188,7 +188,7 @@ class blackbox_attack:
 
         self.stage = 0
 
-        # self.init_op = tf.global_variables_initializer()
+        #self.init_op = tf.global_variables_initializer()
 
     def set_img_modifier(self):
         pass
@@ -260,7 +260,7 @@ class blackbox_attack:
         bestscore = -1
 
 
-        # self.sess.run(self.init_op)
+        #self.sess.run(self.init_op)
 
         # setup the variables
         self.sess.run(self.setup, {self.assign_timg: img,
@@ -279,7 +279,7 @@ class blackbox_attack:
 
         self.eval_costs = 0
 
-        np.random.seed(1234)
+        #np.random.seed(1234)
         attack_begin_time = time.time()
         for iteration in range(self.MAX_ITER):
 
@@ -375,13 +375,12 @@ class ZOO(blackbox_attack):
         self.solver = coordinate_ADAM
 
     def set_img_modifier(self):
+        self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.modifier_shape)
         if (self.modifier_size == self.image_size):
             # not resizing image or using autoencoder
-            self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.image_shape)
             self.img_modifier = self.modifier
         else:
             # resizing image
-            self.modifier = tf.placeholder(tf.float32, shape=(None, None, None, None))
             self.img_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size])
 
     def get_eval_costs(self):
@@ -410,8 +409,11 @@ class ZOO_AE(ZOO):
 
     def set_img_modifier(self):
         self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.modifier_shape)
-        self.img_modifier = self.decoder(self.modifier)
-
+        if self.decoder.output_shape[1] == self.image_size:
+            self.img_modifier = self.decoder(self.modifier)
+        else:
+            self.decoder_output =  self.decoder(self.modifier)
+            self.img_modifier = tf.image.resize_images(self.decoder_output, [self.image_size, self.image_size])
 class ZOO_RV(blackbox_attack):
     def __init__(self, sess, model, args):
         super().__init__(sess, model, args);
@@ -422,16 +424,24 @@ class ZOO_RV(blackbox_attack):
         self.num_rand_vec = 1
 
     def set_img_modifier(self):
-
+        self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.modifier_shape)
         if (self.modifier_size == self.image_size):
             # not resizing image or using autoencoder
-            self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.image_shape)
             self.img_modifier = self.modifier
         else:
-            print("ZOO_RV")
             # resizing image
-            self.modifier = tf.placeholder(tf.float32, shape=(None, None, None, None))
             self.img_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size], align_corners=True)
+
+        # if (self.modifier_size == self.image_size):
+        #     # not resizing image or using autoencoder
+        #     self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.image_shape)
+        #     self.img_modifier = self.modifier
+        # else:
+        #     print("ZOO_RV")
+        #     # resizing image
+        #     self.modifier = tf.placeholder(tf.float32, shape=(None, None, None, None))
+        #     self.img_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size], align_corners=True)
+
 
     def get_eval_costs(self):
         return self.num_rand_vec + 1
@@ -442,8 +452,9 @@ class ZOO_RV(blackbox_attack):
         var_indice = list(range(var_size))
         indice = self.var_list[var_indice]
         
-        #self.beta = 1/(np.power(var_size, 1.5))
+        # self.beta = 1/(np.power(var_size, 1.5))
         self.beta = 1/(var_size)
+        # self.beta = 0.1
 
         var_noise = np.random.normal(loc=0, scale=1.0, size=(self.num_rand_vec, var_size))
         var_noise = var_noise/np.linalg.norm(var_noise)
@@ -473,10 +484,15 @@ class AutoZOOM(ZOO_RV):
         self.solver = ADAM
 
     def set_img_modifier(self):
-        print("AutoZOOM")
         self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.modifier_shape)
-        self.img_modifier = self.decoder(self.modifier)
-        self.temp_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size])
+
+        if self.decoder.output_shape[1] == self.image_size:
+            print("AutoZOOM 1")
+            self.img_modifier = self.decoder(self.modifier)
+        else:
+            print("AutoZOOM 2")
+            self.decoder_output =  self.decoder(self.modifier)
+            self.img_modifier = tf.image.resize_images(self.decoder_output, [self.image_size, self.image_size])
 
 
 
