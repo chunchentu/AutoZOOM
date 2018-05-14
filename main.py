@@ -104,7 +104,7 @@ def main(args):
         if args["attack_method"] == "zoo_ae" or args["attack_method"] == "autozoom":
             #_, decoder = util.load_codec(args["codec_prefix"])
             if args["dataset"] == "mnist" or args["dataset"] == "cifar10":
-                codec = CODEC(model.image_size, model.num_channels, args["compress_mode"])
+                codec = CODEC(model.image_size, model.num_channels, args["compress_mode"], use_tanh=False)
             else:
                 codec = CODEC(128, model.num_channels, args["compress_mode"])
             print(args["codec_prefix"])
@@ -149,7 +149,10 @@ def main(args):
                 if args["dataset"] == "mnist" or args["dataset"] == "cifar10":
                     temp_img = all_orig_img[i:i+1]
                 else:
-                    temp_img = scipy.misc.imresize(all_orig_img[i], (128,128))
+                    temp_img = all_orig_img[i]
+                    temp_img = (temp_img+0.5)*255
+                    temp_img = scipy.misc.imresize(temp_img, (128,128))
+                    temp_img = temp_img/255 - 0.5
                     temp_img = np.expand_dims(temp_img, axis=0)
                 encode_img = codec.encoder.predict(temp_img)
                 decode_img = codec.decoder.predict(encode_img)
@@ -284,7 +287,7 @@ if __name__ == "__main__":
             if args["imagenet_dir"] is None:
                 raise Exception("Selecting imagenet as dataset but the path to the imagenet images are not set.")
 
-        args["use_tanh"] = False
+        args["use_tanh"] = True
         args["lr"] = 2e-3
         
         if args["codec_prefix"] is None:

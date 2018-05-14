@@ -8,69 +8,86 @@ import tensorflow as tf
 import os
 
 class CODEC:
-    def __init__(self, img_size, num_channels, compress_mode=1, resize=None):
+    def __init__(self, img_size, num_channels, compress_mode=1, clip_value=0.5, resize=None, use_tanh=True):
 
         self.compress_mode = compress_mode
         working_img_size = img_size
-        filter_num = 16
+
         encoder_model = Sequential()
         # resize input to a size easy for down-sampled
         if resize:
-            encoder_model.add( Lambda(lambda image: tf.image.resize_images(image, (resize, resize), align_corners=True), 
+            encoder_model.add( Lambda(lambda image: tf.image.resize_images(image, (resize, resize)), 
             input_shape=(img_size, img_size, num_channels)))
         else:
-            encoder_model.add(Convolution2D(filter_num, 3, strides=1,padding='same', input_shape=(img_size, img_size, num_channels)))
+            encoder_model.add(Convolution2D( 16, 3, strides=1,padding='same', input_shape=(img_size, img_size, num_channels)))
         
-        encoder_model.add(BatchNormalization())
-        encoder_model.add(Activation("tanh"))
+        BatchNormalization(axis=3)
+        if use_tanh:
+            encoder_model.add(Activation("tanh"))
+        else:
+            encoder_model.add(Activation("relu"))
         encoder_model.add(MaxPooling2D(pool_size=2, strides=2, padding='same'))
         working_img_size //= 2
 
         if compress_mode >=2:
-            encoder_model.add(Convolution2D(filter_num, 3, strides=1,padding='same'))
-            # encoder_model.add(BatchNormalization())
-            encoder_model.add(Activation("tanh"))
+            encoder_model.add(Convolution2D( 16, 3, strides=1,padding='same'))
+            BatchNormalization(axis=3)
+            if use_tanh:
+                encoder_model.add(Activation("tanh"))
+            else:
+                encoder_model.add(Activation("relu"))
             encoder_model.add(MaxPooling2D(pool_size=2, strides=2, padding='same'))
             working_img_size //= 2
 
         if compress_mode >=3:
-            encoder_model.add(Convolution2D(filter_num, 3, strides=1,padding='same'))
-            # encoder_model.add(BatchNormalization())
-            encoder_model.add(Activation("tanh"))
+            encoder_model.add(Convolution2D( 16, 3, strides=1,padding='same'))
+            BatchNormalization(axis=3)
+            if use_tanh:
+                encoder_model.add(Activation("tanh"))
+            else:
+                encoder_model.add(Activation("relu"))
             encoder_model.add(MaxPooling2D(pool_size=2, strides=2, padding='same'))
             working_img_size //= 2
 
         encoder_model.add(Convolution2D(num_channels, 3, strides=1, padding='same'))
-        # encoder_model.add(BatchNormalization())
+        BatchNormalization(axis=3)
         decoder_model = Sequential()
         decoder_model.add(encoder_model)
 
         if compress_mode >=3:
             working_img_size *= 2
-            decoder_model.add(Convolution2D(filter_num, 3, strides=1, padding='same'))
-            # decoder_model.add(BatchNormalization())
-            decoder_model.add(Activation("tanh"))
+            decoder_model.add(Convolution2D(16, 3, strides=1, padding='same'))
+            BatchNormalization(axis=3)
+            if use_tanh:
+                decoder_model.add(Activation("tanh"))
+            else:
+                decoder_model.add(Activation("relu"))
             #decoder_model.add(Lambda(lambda image: tf.image.resize_images(image, (working_img_size, working_img_size))))
             decoder_model.add(UpSampling2D((2, 2), data_format='channels_last'))
 
         if compress_mode >=2:
             working_img_size *= 2
-            decoder_model.add(Convolution2D(filter_num, 3, strides=1, padding='same'))
-            # decoder_model.add(BatchNormalization())
-            decoder_model.add(Activation("tanh"))
+            decoder_model.add(Convolution2D(16, 3, strides=1, padding='same'))
+            BatchNormalization(axis=3)
+            if use_tanh:
+                decoder_model.add(Activation("tanh"))
+            else:
+                decoder_model.add(Activation("relu"))
             #decoder_model.add(Lambda(lambda image: tf.image.resize_images(image, (working_img_size, working_img_size))))
             decoder_model.add(UpSampling2D((2, 2), data_format='channels_last'))
 
         working_img_size *= 2
-        decoder_model.add(Convolution2D(filter_num, 3, strides=1, padding='same'))
-        # decoder_model.add(BatchNormalization())
-        decoder_model.add(Activation("tanh"))
+        decoder_model.add(Convolution2D(16, 3, strides=1, padding='same'))
+        BatchNormalization(axis=3)
+        if use_tanh:
+            decoder_model.add(Activation("tanh"))
+        else:
+            decoder_model.add(Activation("relu"))
         # decoder_model.add(Lambda(lambda image: tf.image.resize_images(image, (img_size, img_size))))
         decoder_model.add(UpSampling2D((2, 2), data_format='channels_last'))
 
         if resize:
-            decoder_model.add(Lambda(lambda image: tf.image.resize_images(image, (img_size, img_size), align_corners=True)))
-
+            decoder_model.add(Lambda(lambda image: tf.image.resize_images(image, (img_size, img_size))))
 
         decoder_model.add(Convolution2D(num_channels, 3, strides=1, padding='same'))
         # decoder_model.add(Lambda(lambda image: K.clip(image, -clip_value, clip_value) ))

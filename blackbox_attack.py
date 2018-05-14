@@ -115,13 +115,15 @@ class blackbox_attack:
         self.image_shape = (self.image_size, self.image_size, self.num_channels)
         self.modifier_shape = (self.modifier_size, self.modifier_size, self.num_channels)
 
-        self.set_img_modifier()
+        
 
         # true image
         self.timg = tf.Variable(np.zeros(self.image_shape), dtype=tf.float32)
         # true label
         self.tlab = tf.Variable(np.zeros(self.num_labels), dtype=tf.float32)
         self.const = tf.Variable(0.0, dtype=tf.float32)
+
+        self.set_img_modifier()
 
         # operations to assign information
         self.assign_timg = tf.placeholder(tf.float32, self.image_shape)
@@ -431,6 +433,7 @@ class ZOO_RV(blackbox_attack):
         else:
             # resizing image
             self.img_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size], align_corners=True)
+            self.img_rezie = tf.image.resize_images(tf.tanh(self.timg)/2, [128, 128], align_corners=True)
 
         # if (self.modifier_size == self.image_size):
         #     # not resizing image or using autoencoder
@@ -447,6 +450,7 @@ class ZOO_RV(blackbox_attack):
         return self.num_rand_vec + 1
 
     def blackbox_optimizer(self, iteration):
+        PREFIX = "test_ae"
         var_size = self.real_modifier.size
         
         var_indice = list(range(var_size))
@@ -456,12 +460,17 @@ class ZOO_RV(blackbox_attack):
         self.beta = 1/(var_size)
         # self.beta = 0.1
 
-        var_noise = np.random.normal(loc=0, scale=1.0, size=(self.num_rand_vec, var_size))
+        var_noise = np.random.normal(loc=0, scale=1000, size=(self.num_rand_vec, var_size))
         var_noise = var_noise/np.linalg.norm(var_noise)
 
         var = np.concatenate((self.real_modifier, self.real_modifier + self.beta*var_noise.reshape(self.num_rand_vec, self.modifier_size, self.modifier_size, self.num_channels)), axis=0)
 
-        losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var})
+        # losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var})
+        losses, l2s, loss1, loss2, scores, nimgs, img_rezie = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg, self.img_rezie], feed_dict={self.modifier: var})
+
+        if iteration <= 0:
+            util.save_img(nimgs[0], os.path.join(PREFIX, "{}_img.png".format(iteration)))
+            util.save_img(img_rezie, os.path.join(PREFIX, "{}_imgresize.png".format(iteration)))
 
         self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise, self.num_rand_vec)
 

@@ -419,7 +419,7 @@ class ImageNetDataNP:
 
     self.test_data = test_data
     self.test_labels = test_labels
-    # self.train_data = train_data
+    self.train_data = train_data
 
 if __name__ == '__main__':
   tf.app.run()
