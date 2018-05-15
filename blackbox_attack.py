@@ -433,7 +433,6 @@ class ZOO_RV(blackbox_attack):
         else:
             # resizing image
             self.img_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size], align_corners=True)
-            self.img_rezie = tf.image.resize_images(tf.tanh(self.timg)/2, [128, 128], align_corners=True)
 
         # if (self.modifier_size == self.image_size):
         #     # not resizing image or using autoencoder
@@ -465,12 +464,7 @@ class ZOO_RV(blackbox_attack):
 
         var = np.concatenate((self.real_modifier, self.real_modifier + self.beta*var_noise.reshape(self.num_rand_vec, self.modifier_size, self.modifier_size, self.num_channels)), axis=0)
 
-        # losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var})
-        losses, l2s, loss1, loss2, scores, nimgs, img_rezie = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg, self.img_rezie], feed_dict={self.modifier: var})
-
-        if iteration <= 0:
-            util.save_img(nimgs[0], os.path.join(PREFIX, "{}_img.png".format(iteration)))
-            util.save_img(img_rezie, os.path.join(PREFIX, "{}_imgresize.png".format(iteration)))
+        losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var}) 
 
         self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise, self.num_rand_vec)
 
