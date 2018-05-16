@@ -56,9 +56,9 @@ def coordinate_ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real
 
 # def ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, up, down, lr, adam_epoch, beta1, beta2, proj, beta, z, q=1):
 def ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, lr, adam_epoch, beta1, beta2, proj, beta, z, q=1):
-    # indice = np.array(range(0, 3*299*299), dtype = np.int32)
     for i in range(q):
-       grad[i] = q*(losses[i+1] - losses[0])* z[i] / beta
+        grad[i] = q*(losses[i+1] - losses[0])* z[i] / beta
+
 
 
 
@@ -419,11 +419,12 @@ class ZOO_AE(ZOO):
 class ZOO_RV(blackbox_attack):
     def __init__(self, sess, model, args):
         super().__init__(sess, model, args);
-        self.num_rand_vec = 1
-        self.grad = np.zeros((1, self.var_size), dtype = np.float32)
+        
         self.hess = np.zeros(self.BATCH_SIZE, dtype = np.float32)
         self.solver = ADAM
         self.num_rand_vec = 1
+        self.post_success_num_rand_vec = args["num_rand_vec"]
+        self.grad = np.zeros((self.num_rand_vec, self.var_size), dtype = np.float32)
 
     def set_img_modifier(self):
         self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.modifier_shape)
@@ -449,7 +450,6 @@ class ZOO_RV(blackbox_attack):
         return self.num_rand_vec + 1
 
     def blackbox_optimizer(self, iteration):
-        PREFIX = "test_ae"
         var_size = self.real_modifier.size
         
         var_indice = list(range(var_size))
@@ -460,8 +460,9 @@ class ZOO_RV(blackbox_attack):
         # self.beta = 0.1
 
         var_noise = np.random.normal(loc=0, scale=1000, size=(self.num_rand_vec, var_size))
-        var_noise = var_noise/np.linalg.norm(var_noise)
-
+        noise_norm = np.apply_along_axis(np.linalg.norm, 1, var_noise)
+        noise_norm = np.expand_dims(noise_norm, axis=1)
+        var_noise = var_noise/noise_norm
         var = np.concatenate((self.real_modifier, self.real_modifier + self.beta*var_noise.reshape(self.num_rand_vec, self.modifier_size, self.modifier_size, self.num_channels)), axis=0)
 
         losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var}) 
@@ -471,7 +472,7 @@ class ZOO_RV(blackbox_attack):
         return losses[0], l2s[0], loss1[0], loss2[0], scores[0], nimgs[0]
 
     def post_success_setting(self):
-        self.num_rand_vec = 1
+        self.num_rand_vec = self.post_success_num_rand_vec
         self.grad = np.zeros((self.num_rand_vec, self.var_size), dtype = np.float32)
         print("Set random vector number to :{}".format(self.num_rand_vec))
 
