@@ -231,6 +231,7 @@ if __name__ == "__main__":
     parser.add_argument("--imagenet_dir", default=None, help="the path for imagenet images")
     parser.add_argument("--attack_single_img", default=None, help="attack a specific image, only works when DATASET is imagenet")
     parser.add_argument("--single_img_target_label", type=int, default=None, help="the target label for the single image attack")
+    parser.add_argument("--compress_mode", type=int, default=None, help="specify the compress mode if autoencoder is used")
 
     args = vars(parser.parse_args())
 
@@ -258,8 +259,8 @@ if __name__ == "__main__":
         if args["codec_prefix"] is None:
             args["codec_prefix"] = "codec/cifar10"
         args["lr"] = 1e-2
-
-        args["compress_mode"] = 2
+        if args["compress_mode"] is None:
+            args["compress_mode"] = 2
 
     # imagenet
     if args["dataset"] == "imagenet" or args["dataset"] == "imagenet_np":
