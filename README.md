@@ -8,10 +8,12 @@ The program is developed under Tensorflow 1.6.0 and Tensorflow-gpu 1.6.0. Note t
 
 # Datasets
 The dataset **mnist** and **cifar10** would be downloaded automatically the first time you use them. For the **imagenet** dataset please download the file using the following link:
+
 [ImageNet Test images](http://www-personal.umich.edu/~timtu/Downloads/imagenet_npy/imagenet_test_data.npy)
+
 [ImageNet Test labels](http://www-personal.umich.edu/~timtu/Downloads/imagenet_npy/imagenet_test_labels.npy)
 
-The images and labels are stored with numpy format. We use the class `ImageNetDataNp` defined under file `setup_inception.py` to load these two files.
+The images and labels are stored with numpy format. Please download them and put them under AutoZOOM folder. We use the class `ImageNetDataNp` defined under file `setup_inception.py` to load these two files.
 
 # Classifiers
 We provide the classifiers for **mnist** and **cifar10** under the folder `models`.  See `setup_mnist.py` and `setup_cifar.py` for more information about the classifiers. To obtain the classifier for **imagenet** run
@@ -22,14 +24,9 @@ python3 setup_inception.py
 This will download the inception_v3 model pre-trained for **imagenet**.
 
 # Autoencoder
-We provide the autoencoder for **mnist**, **cifar10** and **imagenet**. The autoencoder for **imagenet** will be updated soon. The naming for encoder and decoder are *\<dataset>_<compress_mode>_encoder.h5* and *\<dataset>_<compress_mode>_decoder.h5*. The *compress_mode* is an integer indicating the compression rate of the additive noise (attack space). When *compress_mode*=1, the width and height are respectively reduced by 1/2 of the original size. For *compress_mode*=2, its width and height are reduced to 1/4. As for **imagenet**, the settings are slightly different. Since the original image size for **imagenet** is 299x299, we first resize the image to 128x128.
+We provide the autoencoder for **mnist**, **cifar10** and **imagenet**.The naming for encoder and decoder are *\<dataset>_<compress_mode>_encoder.h5* and *\<dataset>_<compress_mode>_decoder.h5*. The *compress_mode* is an integer indicating the compression rate of the additive noise (attack space). When *compress_mode*=1, the width and height are respectively reduced by 1/2 of the original size. For *compress_mode*=2, its width and height are reduced to 1/4. As for **imagenet**, the settings are slightly different. Since the original image size for **imagenet** is 299x299, we first resize the image to 128x128 and then compress the image.
 
 See `setup_codec.py` for more information about the autoencoder.
-
-
-## Imagenet test dataset
-
-
 
 
 # Run attacks
@@ -71,10 +68,6 @@ This argument should be provided when using **zoo_ae** or **autozoom**. The prog
 Here we provide several examples 
 
 1.
-
-```
-python3 main.py -a zoo -d mnist -n 100 --m 1000 --batch_size 128 --switch_iterations 100 --init_const 10 --img_resize 14
-```
 
 ```
 python3 main.py -a zoo -d mnist -n 100 -b 9 --m 10000 \
