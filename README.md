@@ -70,7 +70,7 @@ Here we provide several examples
 1.
 
 ```
-python3 main.py -a zoo -d mnist -n 100 -b 9 --m 10000 \
+python3 main.py -a zoo -d mnist -n 100 --m 1000 \
     --batch_size 128 --switch_iterations 100 \
     --init_const 10 --img_resize 14
 ```
@@ -81,12 +81,12 @@ This will attack 100 images of the **mnist** dataset using the **zoo** method wi
 2.
 
 ```
-python3 main.py -a zoo_rv -d cifar10 -n 100 --m 10000 \
- --batch_size 1 --switch_iterations 1000 --init_const 10\
+python3 main.py -a zoo_ae -d cifar10 -n 100 --m 1000 \
+ --switch_iterations 1000 --init_const 10 \
  --codec_prefix codec/cifar10_2
 ```
 
-This will attack 100 images of the **cifar10** dataset using the **zoo_rv** method. We specify the codec prefix as `codec/cifar10_2` so that both `codec/cifar10_2_encoder.h5` and `codec/cifar10_2_decoder.h5`
+This will attack 100 images of the **cifar10** dataset using the **zoo_ae** method. We specify the codec prefix as `codec/cifar10_2` so that both `codec/cifar10_2_encoder.h5` and `codec/cifar10_2_decoder.h5`
  will be loaded. 
 
 

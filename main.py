@@ -27,8 +27,6 @@ import Utils as util
 from blackbox_attack import ZOO, ZOO_AE, ZOO_RV, AutoZOOM
 import argparse
 
-from l2_attack_black_bs import BlackBoxL2_bs
-
 def main(args):
     with tf.Session() as sess:
         print("Loading data and classification model: {}".format(args["dataset"]))
