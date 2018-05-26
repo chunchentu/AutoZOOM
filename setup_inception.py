@@ -412,14 +412,14 @@ class ImageNetDataGen:
 
 class ImageNetDataNP:
   def __init__(self):
-    train_data = np.load("imagenet_train_data.npy")
-    train_labels = np.load("imagenet_train_labels.npy")
+    #train_data = np.load("imagenet_train_data.npy")
+    #train_labels = np.load("imagenet_train_labels.npy")
     test_data = np.load("imagenet_test_data.npy")
     test_labels = np.load("imagenet_test_labels.npy")
 
     self.test_data = test_data
     self.test_labels = test_labels
-    self.train_data = train_data
+    # self.train_data = train_data
 
 if __name__ == '__main__':
   tf.app.run()

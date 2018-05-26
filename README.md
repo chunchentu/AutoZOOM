@@ -8,17 +8,29 @@ The program is developed under Tensorflow 1.6.0 and Tensorflow-gpu 1.6.0. Note t
 
 # Datasets
 The dataset **mnist** and **cifar10** would be downloaded automatically the first time you use them. For the **imagenet** dataset please download the file using the following link:
-[ImageNet Test Set](http://jaina.cs.ucdavis.edu/datasets/adv/imagenet/img.tar.gz)
+[ImageNet Test images](http://www-personal.umich.edu/~timtu/Downloads/imagenet_npy/imagenet_test_data.npy)
+[ImageNet Test labels](http://www-personal.umich.edu/~timtu/Downloads/imagenet_npy/imagenet_test_labels.npy)
+
+The images and labels are stored with numpy format. We use the class `ImageNetDataNp` defined under file `setup_inception.py` to load these two files.
 
 # Classifiers
 We provide the classifiers for **mnist** and **cifar10** under the folder `models`.  See `setup_mnist.py` and `setup_cifar.py` for more information about the classifiers. To obtain the classifier for **imagenet** run
-```python
+
+```
 python3 setup_inception.py
 ```
 This will download the inception_v3 model pre-trained for **imagenet**.
 
 # Autoencoder
-We provide the autoencoder for **mnist** and **cifar10**. The autoencoder for **imagenet** will be updated soon. The naming for encoder and decoder are *\<dataset>_<compress_mode>_encoder.h5* and *\<dataset>_<compress_mode>_decoder.h5*. The *compress_mode* is an integer indicating the compression rate of the additive noise (attack space). When *compress_mode*=1, the width and height are respectively reduced by 1/2 of the original size. For *compress_mode*=2, its width and height are reduced to 1/4. See `setup_codec.py` for more information about the autoencoder.
+We provide the autoencoder for **mnist**, **cifar10** and **imagenet**. The autoencoder for **imagenet** will be updated soon. The naming for encoder and decoder are *\<dataset>_<compress_mode>_encoder.h5* and *\<dataset>_<compress_mode>_decoder.h5*. The *compress_mode* is an integer indicating the compression rate of the additive noise (attack space). When *compress_mode*=1, the width and height are respectively reduced by 1/2 of the original size. For *compress_mode*=2, its width and height are reduced to 1/4. As for **imagenet**, the settings are slightly different. Since the original image size for **imagenet** is 299x299, we first resize the image to 128x128.
+
+See `setup_codec.py` for more information about the autoencoder.
+
+
+## Imagenet test dataset
+
+
+
 
 # Run attacks
 Several options can be used to configure the attacks:
@@ -64,15 +76,34 @@ Here we provide several examples
 python3 main.py -a zoo -d mnist -n 100 --m 1000 --batch_size 128 --switch_iterations 100 --init_const 10 --img_resize 14
 ```
 
+```
+python3 main.py -a zoo -d mnist -n 100 -b 9 --m 10000 \
+    --batch_size 128 --switch_iterations 100 \
+    --init_const 10 --img_resize 14
+```
+
 This will attack 100 images of the **mnist** dataset using the **zoo** method with batch size set to 128. The regularization constant is initialized to 10 and will be updated every 100 iterations. Finally, the attack space is reduced to 14x14 (the original size is 28x28).
 
 
 2.
 
 ```
-python3 main.py -a autozoom -d cifar10 -n 100 --m 10000 --batch_size 1 --switch_iterations 1000 --init_const 0.1 --codec_prefix codec/cifar10_2
+python3 main.py -a zoo_rv -d cifar10 -n 100 --m 10000 \
+ --batch_size 1 --switch_iterations 1000 --init_const 10\
+ --codec_prefix codec/cifar10_2
 ```
 
-This will attack 100 images of the **cifar10** dataset using the **autozoom** method. We specify the codec prefix as `codec/cifar10_2` so that both `codec/cifar10_2_encoder.h5` and `codec/cifar10_2_decoder.h5`
+This will attack 100 images of the **cifar10** dataset using the **zoo_rv** method. We specify the codec prefix as `codec/cifar10_2` so that both `codec/cifar10_2_encoder.h5` and `codec/cifar10_2_decoder.h5`
  will be loaded. 
+
+
+3. 
+
+```
+python3 main.py -a autozoom -d imagenet -n 1 --img_offset 9 \
+ --m 100000 --switch_iterations 1000 --init_const 10 \
+ --codec_prefix codec/imagenet_3 --random_target
+```
+
+This will attack the 10-th (index starts from 0) image of the **imagenet** dataset using the **autozoom** method. We specify the codec prefix as `codec/imagenet_3` so that both `codec/imagenet_3_encoder.h5` and `codec/imagenet_3_decoder.h5` will be loaded. 
 

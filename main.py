@@ -284,9 +284,9 @@ if __name__ == "__main__":
                     print("Randomly choose target label:{}".format(args["single_img_target_label"]))
                 else:
                     print("Targeting label:{}".format(args["single_img_target_label"]))
-        else:
-            if args["imagenet_dir"] is None:
-                raise Exception("Selecting imagenet as dataset but the path to the imagenet images are not set.")
+        # else:
+        #     if args["imagenet_dir"] is None:
+        #         raise Exception("Selecting imagenet as dataset but the path to the imagenet images are not set.")
 
         args["use_tanh"] = True
         args["lr"] = 2e-3

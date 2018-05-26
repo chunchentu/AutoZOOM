@@ -26,8 +26,6 @@ ADAM_BETA1 = 0.9
 ADAM_BETA2 = 0.999
 
 
-#@jit(nopython=True)
-# def coordinate_ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, up, down, lr, adam_epoch, beta1, beta2, proj):
 def coordinate_ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, lr, adam_epoch, beta1, beta2, proj):
     for i in range(batch_size):
         grad[i] = (losses[i*2+1] - losses[i*2+2]) / 0.0002 
@@ -44,32 +42,19 @@ def coordinate_ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real
     m = real_modifier.reshape(-1)
     old_val = m[indice] 
     old_val -= lr * corr * mt / (np.sqrt(vt)  + 1e-8 )
-    # set it back to [-0.5, +0.5] region
-    # if proj:
-    #     old_val = np.maximum(np.minimum(old_val, up[indice]), down[indice])
+
     m[indice] = old_val
-    # print(indice)
-    # print(m)
-    # print("loss:{} {}".format(losses[61*2+1], losses[61*2+2]))
-    # print("grad:{}".format(grad[61]))
     adam_epoch[indice] = epoch + 1
 
-# def ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, up, down, lr, adam_epoch, beta1, beta2, proj, beta, z, q=1):
 def ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, lr, adam_epoch, beta1, beta2, proj, beta, z, q=1):
     for i in range(q):
         grad[i] = q*(losses[i+1] - losses[0])* z[i] / beta
 
-
+    # argument indice should be removed for the next version
+    # the entire modifier is updated for every epoch and thus indice is not required
 
 
     avg_grad = np.mean(grad, axis=0)
-    # grad = (losses[1] - losses[0])* z / beta
-    # true_grads = self.sess.run(self.grad_op, feed_dict={self.modifier: self.real_modifier})
-    # true_grads, losses, l2s, scores, nimgs = self.sess.run([self.grad_op, self.loss, self.l2dist, self.output, self.newimg], feed_dict={self.modifier: self.real_modifier})
-    # grad = true_grads[0].reshape(-1)[indice]
-    # print(grad, true_grads[0].reshape(-1)[indice])
-    # self.real_modifier.reshape(-1)[indice] -= self.LEARNING_RATE * grad
-    # self.real_modifier -= self.LEARNING_RATE * true_grads[0]
     # ADAM update
     mt = mt_arr[indice]
     mt = beta1 * mt + (1 - beta1) * avg_grad
@@ -77,18 +62,12 @@ def ADAM(losses, indice, grad, hess, batch_size, mt_arr, vt_arr, real_modifier, 
     vt = vt_arr[indice]
     vt = beta2 * vt + (1 - beta2) * (avg_grad * avg_grad)
     vt_arr[indice] = vt
-    # epoch is an array; for each index we can have a different epoch number
+
     epoch = adam_epoch[indice]
     corr = (np.sqrt(1 - np.power(beta2,epoch))) / (1 - np.power(beta1, epoch))
     m = real_modifier.reshape(-1)
     old_val = m[indice] 
     old_val -= lr * corr * mt / (np.sqrt(vt)  + 1e-8 )
-    # print("ADAM diss:{:.10g}, corr:{:.10g}".format(np.linalg.norm(old_val-m), np.mean(corr)))
-    # set it back to [-0.5, +0.5] region
-    # if proj:
-    #     old_val = np.maximum(np.minimum(old_val, up[indice]), down[indice])
-    # print(grad)
-    # print(old_val - m[indice])
     m[indice] = old_val
     adam_epoch[indice] = epoch + 1
 
@@ -325,16 +304,9 @@ class blackbox_attack:
 
             self.train_timer += time.time() - attack_begin_time
 
-            # if np.abs((last_loss2 - loss2)/loss2)<0.00001 and self.stage==1 and loss1 ==0 and last_loss1 == 0 and iteration>10:
-            #     print("Switch iteration due to low loss2:{:.10g}:{:.10g}, {:.10g}".format(last_loss2, loss2, np.abs((last_loss2 - loss2)/loss2)))
-            #     switch_loss2 = True
-            # else:
-            #     switch_loss2 = False
-
             last_loss1 = loss1
             last_loss2 = loss2
             # switch constant when reaching switch iterations
-            # if (iteration % self.SWITCH_ITER == 0 and iteration != 0) or switch_loss2:
             if iteration % self.SWITCH_ITER == 0 and iteration != 0:
                 if self.compare(bestscore, np.argmax(lab)) and bestscore != -1:
                     # success, divide const by two
@@ -403,6 +375,7 @@ class ZOO(blackbox_attack):
 
 
     def blackbox_optimizer(self, iteration):
+        # argument iteration is for debugging
         # build new inputs, based on current variable value
         var = np.repeat(self.real_modifier, self.BATCH_SIZE * 2 + 1, axis=0)
         var_size = self.real_modifier.size
@@ -429,6 +402,7 @@ class ZOO_AE(ZOO):
         else:
             self.decoder_output =  self.decoder(self.modifier)
             self.img_modifier = tf.image.resize_images(self.decoder_output, [self.image_size, self.image_size])
+
 class ZOO_RV(blackbox_attack):
     def __init__(self, sess, model, args):
         super().__init__(sess, model, args);
@@ -448,55 +422,30 @@ class ZOO_RV(blackbox_attack):
             # resizing image
             self.img_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size], align_corners=True)
 
-        # if (self.modifier_size == self.image_size):
-        #     # not resizing image or using autoencoder
-        #     self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.image_shape)
-        #     self.img_modifier = self.modifier
-        # else:
-        #     print("ZOO_RV")
-        #     # resizing image
-        #     self.modifier = tf.placeholder(tf.float32, shape=(None, None, None, None))
-        #     self.img_modifier = tf.image.resize_images(self.modifier, [self.image_size, self.image_size], align_corners=True)
 
 
     def get_eval_costs(self):
         return self.num_rand_vec + 1
 
     def blackbox_optimizer(self, iteration):
+
+        # argument iteration is for debugging
+
         var_size = self.real_modifier.size
         indice = list(range(var_size))
-        # indice = self.var_list[var_indice]
-        
-        # self.beta = 1/(np.power(var_size, 1.5))
         self.beta = 1/(var_size)
-        # self.beta = 0.1
 
         var_noise = np.random.normal(loc=0, scale=1000, size=(self.num_rand_vec, var_size))
         var_mean = np.mean(var_noise, axis=1, keepdims=True)
         var_std = np.std(var_noise, axis=1, keepdims=True)
-        # var_noise = (var_noise-var_mean)/var_std*1000
-        # for (i, temp) in enumerate(var_noise):
-        #     print("i:{}:mean:{},std:{}".format(i, np.mean(temp), np.std(temp)))
+
         noise_norm = np.apply_along_axis(np.linalg.norm, 1, var_noise, keepdims=True)
-        # noise_norm = np.expand_dims(noise_norm, axis=1)
         var_noise = var_noise/noise_norm
-        # var_noise = var_noise + np.sign(var_noise)*1e-2
-        # print("{:.10g}".format(np.min(np.abs(var_noise))))
-        # if self.stage == 1:
-        #     for (i,tmp) in enumerate(var_noise):
-        #         print("{}, {}:{},{}".format(iteration, i, np.linalg.norm(tmp), np.sum(np.abs(tmp.reshape(-1)))), end=" ")
-        #     print("")
         var = np.concatenate((self.real_modifier, self.real_modifier + self.beta*var_noise.reshape(self.num_rand_vec, self.modifier_size, self.modifier_size, self.num_channels)), axis=0)
 
         losses, l2s, loss1, loss2, scores, nimgs = self.sess.run([self.loss, self.l2dist, self.loss1, self.loss2, self.output, self.newimg], feed_dict={self.modifier: var}) 
-        # print("{}:{:.10g}, {:.10g}".format(iteration, losses[0], losses[1]))
+
         self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise, self.num_rand_vec)
-        # if loss1[0] == 0:
-        #     print("loss1=0")
-        #     self.solver(100*losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, 2e-3, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise, self.num_rand_vec)
-        # else:
-        #     print("loss1 not 0")
-        #     self.solver(losses, indice, self.grad, self.hess, self.BATCH_SIZE, self.mt, self.vt, self.real_modifier, self.LEARNING_RATE, self.adam_epoch, self.beta1, self.beta2, not self.USE_TANH, self.beta, var_noise, self.num_rand_vec)
 
         return losses[0], l2s[0], loss1[0], loss2[0], scores[0], nimgs[0]
 
@@ -520,14 +469,10 @@ class AutoZOOM(ZOO_RV):
         self.modifier = tf.placeholder(tf.float32, shape=(None,) + self.modifier_shape)
 
         if self.decoder.output_shape[1] == self.image_size:
-            print("AutoZOOM 1")
             self.img_modifier = self.decoder(self.modifier)
         else:
-            print("AutoZOOM 2")
             self.decoder_output =  self.decoder(self.modifier)
             self.img_modifier = tf.image.resize_images(self.decoder_output, [self.image_size, self.image_size], align_corners=True)
-
-
 
     def post_success_setting(self):
         self.num_rand_vec = self.post_success_num_rand_vec
